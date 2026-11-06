@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CB1 Medical Task Board</title>
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@400;600;700&family=Montserrat:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: summary strip, add form, filterable task table */
+:root{--bg:#f4f6f5;--panel:#fff;--fg:#313131;--mute:#7c908e;--line:#d4d8d7;--accent:#4b5e5c;--ok:#2f7d5b;--warn:#b26b00;--bad:#c0392b;
+--display:"Josefin Sans",system-ui,sans-serif;--body:"Montserrat",system-ui,sans-serif;--mono:"Montserrat",system-ui,sans-serif}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141918;--panel:#1d2423;--fg:#eceeed;--mute:#939e9e;--line:#323c3b;--accent:#9fb5b2;--ok:#4cc26b;--warn:#e3a33b;--bad:#ff6b6b;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#141918;--panel:#1d2423;--fg:#eceeed;--mute:#939e9e;--line:#323c3b;--accent:#9fb5b2;--ok:#4cc26b;--warn:#e3a33b;--bad:#ff6b6b;color-scheme:dark}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body)}h1,.stat b,th,button{font-family:var(--display)}
+button{color:var(--bg)!important}button.ghost,.x{color:var(--accent)!important}
+.wrap{max-width:1200px;margin:0 auto;padding-block:24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:20px}
+.logo{display:block;height:48px;width:auto;max-width:100%;color:#344641;margin-bottom:10px}
+:root[data-theme="dark"] .logo{color:var(--fg)}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .logo{color:var(--fg)}}
+h1{margin:0;font-size:28px;font-weight:700;letter-spacing:.02em}.sub{color:var(--mute);margin:4px 0 0}
+.stats{display:flex;flex-wrap:wrap;gap:12px}.stat{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 14px;min-width:110px}
+.stat b{display:block;font-size:22px;font-variant-numeric:tabular-nums}.stat span{font-size:12px;color:var(--mute);text-transform:uppercase;letter-spacing:.05em}
+.stat.bad b{color:var(--bad)}
+form,.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:end}
+form{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px}
+label{display:grid;gap:4px;font-size:12px;color:var(--mute);flex:1 1 140px}label.wide{flex:3 1 280px}
+input,select,textarea{font:inherit;font-size:14px;padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg)}
+button{font:inherit;font-weight:700;padding:8px 14px;border-radius:6px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer}
+button.ghost{background:transparent;color:var(--accent)}button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.tbl{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:8px}
+table{width:100%;border-collapse:collapse;font-size:14px;min-width:900px}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);padding:10px;border-bottom:1px solid var(--line)}
+td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}td select,td input{font-size:13px;padding:4px 6px;width:100%}
+.due{font-family:var(--mono);font-size:13px}.over{color:var(--bad);font-weight:600}
+.pri{display:inline-block;padding:2px 8px;border-radius:99px;font-size:12px;border:1px solid currentColor}
+.High{color:var(--bad)}.Medium{color:var(--warn)}.Low{color:var(--ok)}
+select.pri{border:none;font-weight:600;color:#fff;width:auto;padding:4px 10px}select.pri.High{background:var(--bad)}select.pri.Medium{background:var(--warn)}select.pri.Low{background:var(--ok)}select.pri option{background:var(--panel);color:var(--fg)}
+tr.done td{opacity:.55}.src{font-size:12px;color:var(--mute)}
+.empty{padding:28px;text-align:center;color:var(--mute)}.msg{color:var(--mute);font-size:13px}
+.x{background:none;border:none;color:var(--mute);padding:2px 6px}
+label:has(.dnw){position:relative}.dnw{position:absolute;top:100%;left:0;margin-top:4px;display:flex;gap:4px;align-items:center;font-size:12px;white-space:nowrap}form{padding-bottom:30px;row-gap:30px}
+.nodue{background:none!important;border:none;color:var(--mute)!important;font-family:var(--body);font-weight:500;font-size:11px;padding:2px 0;text-decoration:underline;cursor:pointer}.nd{font-size:11px;color:var(--mute);margin-top:2px}
+.h2{font-family:var(--display);font-size:18px;margin:0 0 10px}
+.pipe{display:grid;grid-template-columns:repeat(3,minmax(220px,1fr));gap:12px;overflow-x:auto;padding-bottom:4px}
+.col{background:color-mix(in srgb,var(--accent) 7%,var(--bg));border:1px solid var(--line);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:8px;min-height:120px}.col.over-col{outline:2px dashed var(--accent)}
+.colh{display:flex;justify-content:space-between;font-family:var(--display);font-weight:700;color:var(--accent)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 10px;cursor:grab;display:grid;gap:6px}.ct{font-weight:600;font-size:13px}
+.cm{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12px;color:var(--mute)}.cm .pri{font-size:11px;padding:0 6px}.mv{display:flex;justify-content:space-between}
+.steps{margin-top:6px;font-size:13px}.steps summary{cursor:pointer;color:var(--mute);display:flex;align-items:center;gap:8px}
+.pbar{display:inline-block;width:80px;height:6px;border-radius:3px;background:var(--line);overflow:hidden}.pbar i{display:block;height:100%;background:var(--ok)}
+.steps ol{margin:8px 0;padding-left:20px;display:grid;gap:4px}.steps li{display:flex;align-items:center;gap:6px}.steps li span{flex:1}.steps li.sd span{text-decoration:line-through;color:var(--mute)}
+.steps li input[type=date]{width:auto;font-size:12px;padding:2px 4px}.steps input[type=checkbox]{width:auto}.addstep{display:flex;gap:6px}.addstep input{flex:1}.addstep button{padding:4px 10px}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<header><svg class="logo" role="img" aria-label="CB1 Medical" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewBox="0 0 1000 250" style="enable-background:new 0 0 1000 250;" xml:space="preserve"> <g id="Logo" opacity="0.9"> <path fill="currentColor" d="M228.1,141.7h29.6v71.7h-18.1V159h-11.5V141.7z"/> <path fill="currentColor" d="M109,177c-2.3,1.5-5.4,3.2-9.3,5.1c-3.9,1.9-8.5,3.5-13.7,4.7c-5.2,1.3-11,1.9-17.3,1.9 c-10.5-0.1-20-2-28.5-5.7s-15.8-8.6-21.8-15c-6-6.3-10.6-13.6-13.7-21.9C1.5,137.8,0,129,0,119.7c0-10.2,1.6-19.7,4.9-28.3 c3.3-8.6,8-16.2,14.1-22.5c6.1-6.4,13.3-11.3,21.6-14.9c8.3-3.5,17.3-5.3,27.2-5.3c8.2,0,15.7,1.1,22.4,3.3s12.4,4.8,17.2,7.7 L100,77.1c-3.8-2.7-8.4-5.1-13.8-7.4c-5.4-2.3-11.4-3.4-17.8-3.4c-6.7,0-13,1.3-18.9,4s-11.2,6.4-15.7,11.2s-8.1,10.4-10.7,16.7 c-2.6,6.3-3.9,13.2-3.9,20.6c0,7.3,1.2,14.2,3.5,20.6s5.7,11.9,10,16.7c4.4,4.7,9.6,8.4,15.8,11.1c6.2,2.7,13.1,4,20.8,4 c6.9,0,13.1-1.1,18.6-3.2c5.4-2.1,9.9-4.5,13.4-7.2L109,177z"/> <path fill="currentColor" d="M161.9,50.3c13.8,0,24.6,2.8,32.5,8.4s11.8,14.3,11.8,26.1c0,7.3-1.6,13.6-4.9,18.9 c-3.3,5.3-7.9,9.5-13.7,12.5c-5.9,3-12.8,4.8-20.7,5.3l-2.7-9.7c9.2,0.3,17.5,1.9,24.8,4.9s13.1,7.3,17.4,12.7 c4.3,5.4,6.4,11.9,6.4,19.3c0,6.8-1.2,12.7-3.7,17.5c-2.5,4.9-5.9,8.8-10.2,11.9c-4.4,3.1-9.2,5.4-14.6,6.8c-5.4,1.5-11,2.2-17,2.2 h-40.7v-137h35.3L161.9,50.3L161.9,50.3z M165.7,110.2c7.6,0,13.1-2.1,16.5-6.3c3.4-4.2,5.1-9.2,5.1-15.2c0-7.3-2.2-12.6-6.6-15.9 c-4.4-3.3-10.4-4.9-17.8-4.9h-17.8v42.2h20.6V110.2z M166.4,170.2c5.2,0,9.9-0.8,14-2.3c4.2-1.5,7.5-3.9,9.9-7.1 c2.5-3.2,3.7-7.2,3.7-11.8c0-5.3-1.4-9.5-4.3-12.5c-2.8-3-6.5-5.2-10.9-6.5s-9-2-13.6-2h-20.3v42.2L166.4,170.2L166.4,170.2z"/> <path fill="currentColor" d="M322,187.3V46h0.2L394,148.1l-7.8-1.7L458,46h0.2v141.3h-18.4V87.6l1.3,9.3L389.6,170h-0.4l-52.4-73.1l3-8.5 v98.9H322z"/> <path fill="currentColor" d="M520.2,189.2c-9,0-16.7-1.8-23.1-5.4c-6.4-3.6-11.4-8.5-15-14.8c-3.5-6.3-5.3-13.4-5.3-21.5c0-7.7,2-14.7,6-21 s9.2-11.4,15.8-15.2c6.6-3.8,13.9-5.7,22-5.7c10.4,0,18.9,3,25.8,9.1s11.5,14.4,14,25l-64.8,22.7l-4.2-10.4l52.9-19.5l-3.6,2.7 c-1.5-4.2-4-7.8-7.6-10.8c-3.5-3-8.1-4.5-13.8-4.5c-4.8,0-9.1,1.1-12.8,3.4s-6.7,5.4-8.8,9.4s-3.2,8.6-3.2,13.9s1.1,10,3.3,14.2 s5.3,7.4,9.3,9.8c4,2.3,8.5,3.5,13.5,3.5c3.4,0,6.7-0.6,9.9-1.9c3.2-1.3,6.3-2.9,9.2-4.9l8,13.1c-3.9,2.7-8.3,4.8-13.2,6.4 S524.8,189.2,520.2,189.2z"/> <path fill="currentColor" d="M604.7,189.2c-7.3,0-13.9-1.7-19.7-5.2s-10.5-8.4-13.9-14.8c-3.5-6.4-5.2-13.7-5.2-22.1 c0-8.7,1.8-16.2,5.5-22.4c3.7-6.2,8.6-10.9,14.8-14.2c6.2-3.3,13.1-4.9,20.8-4.9c6.2,0,12.1,1.3,17.7,4c5.6,2.7,10,6.3,13.2,11 l-0.9,6.3V40.6h17.6v146.6H637v-19.5l2.1,4.9c-3.8,4.8-8.6,8.7-14.5,11.8C618.6,187.6,612,189.2,604.7,189.2z M610.2,174.2 c4.7,0,8.8-0.9,12.4-2.7c3.6-1.8,6.6-4.1,9.1-7.1s4.2-6.5,5.2-10.5v-15c-1-3.8-2.8-7.1-5.4-10c-2.6-2.9-5.7-5.1-9.3-6.7 s-7.6-2.4-12-2.4c-4.7,0-9,1.1-13.1,3.4c-4,2.3-7.3,5.4-9.7,9.5c-2.4,4-3.6,8.7-3.6,14c0,5.2,1.2,9.8,3.6,13.9 c2.4,4.1,5.6,7.4,9.7,9.9C601.1,173,605.5,174.2,610.2,174.2z"/> <path fill="currentColor" d="M674.4,80.4c0-2.8,1.1-5.1,3.3-7s4.6-2.8,7.3-2.8s5,0.9,7.2,2.8c2.1,1.9,3.2,4.2,3.2,7c0,2.9-1.1,5.3-3.2,7.1 c-2.1,1.8-4.5,2.7-7.2,2.7s-5.1-0.9-7.3-2.7C675.5,85.7,674.4,83.3,674.4,80.4z M675.5,108.9h17.8v78.4h-17.8V108.9z"/> <path fill="currentColor" d="M778.2,179.9c-3.5,2.9-7.8,5.2-12.7,6.8s-9.9,2.5-14.8,2.5c-8.5,0-15.9-1.7-22.5-5.1 c-6.5-3.4-11.6-8.2-15.2-14.4c-3.7-6.2-5.5-13.4-5.5-21.8c0-8.3,2-15.6,5.9-21.7c3.9-6.1,9-10.9,15.2-14.2c6.3-3.3,13-5,20.4-5 c6.2,0,11.8,0.9,16.8,2.6s9.3,4.1,13,7.3l-8.9,11.4c-2.1-1.6-4.9-3.2-8.2-4.6c-3.3-1.5-7-2.2-11.1-2.2c-4.7,0-8.9,1.2-12.8,3.5 c-3.9,2.3-6.9,5.5-9.1,9.5c-2.2,4-3.3,8.5-3.3,13.5c0,4.9,1.1,9.4,3.4,13.5c2.3,4,5.4,7.3,9.5,9.7c4,2.4,8.7,3.6,14,3.6 c3.3,0,6.3-0.5,9.2-1.5c2.8-1,5.4-2.4,7.7-4.2L778.2,179.9z"/> <path fill="currentColor" d="M824,189.2c-7.3,0-14-1.6-20-4.7c-6-3.2-10.8-7.8-14.3-13.9c-3.5-6.1-5.3-13.6-5.3-22.4s1.8-16.4,5.5-22.7 s8.6-11.2,14.8-14.6s12.9-5.1,20.3-5.1c7.3,0,13.5,1.7,18.7,5c5.1,3.4,8.9,7.3,11.5,11.8l-1.1,2.8l1.7-16.5h16.3v78.4h-17.6v-20.5 l2.1,4.5c-0.6,1.3-1.8,2.9-3.6,4.8c-1.8,2-4,4-6.7,6s-5.9,3.7-9.6,5C832.9,188.5,828.7,189.2,824,189.2z M828.8,174.6 c4.4,0,8.4-0.8,11.9-2.5c3.5-1.6,6.5-4,8.8-7s3.9-6.6,4.8-10.6v-15.3c-1-3.8-2.8-7.1-5.3-9.9c-2.5-2.8-5.6-5-9.1-6.6 s-7.4-2.4-11.6-2.4c-4.8,0-9.2,1.1-13.1,3.4c-3.9,2.3-7,5.4-9.4,9.5c-2.3,4-3.5,8.8-3.5,14.2c0,5.1,1.2,9.7,3.6,13.8 c2.4,4.2,5.6,7.5,9.7,9.9C819.7,173.4,824.1,174.6,828.8,174.6z"/> <path fill="currentColor" d="M893,40.6h17.8v146.6H893V40.6z"/> </g> </svg> <h1>Task Board</h1></header>
+<div class="stats" id="stats"></div>
+<h2 class="h2">Add a task</h2>
+<form id="f">
+<label class="wide">Task<input id="t" required placeholder="e.g. Renew SSL for cb1medical.com"></label>
+<label>Area<input id="c" placeholder="Website, SEO, Ads…"></label>
+<label>Assigned to<input id="a" placeholder="Name"></label>
+<label>Due<input id="d" type="date" oninput="document.getElementById('dnw').hidden=!!this.value"><span id="dnw" class="dnw"><input type="checkbox" id="dn" style="width:auto" onchange="if(this.checked)document.getElementById('d').value=''">No due date</span></label>
+<label>Priority<select id="p"><option>High</option><option selected>Medium</option><option>Low</option></select></label>
+<button>Add task</button>
+</form>
+<div class="bar">
+<label>Filter by person<select id="fa"><option value="">Everyone</option></select></label>
+<label>Status<select id="fs"><option value="open">Not done</option><option value="">All</option><option>To do</option><option>In progress</option><option>Done</option></select></label>
+<label class="wide">Search<input id="q" placeholder="Search tasks"></label>
+<button class="ghost" id="csv" type="button">Export to Excel</button>
+</div>
+<h2 class="h2">All tasks</h2>
+<p class="msg" id="msg">Loading tasks…</p>
+<div class="tbl"><table><thead><tr><th>Task</th><th>Area</th><th>Assigned to</th><th>Due</th><th>Priority</th><th>Status</th><th></th></tr></thead><tbody id="rows"></tbody></table></div>
+<section><h2 class="h2">Pipeline</h2><div class="pipe" id="pipe"></div></section>
+</div>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+const ST=["To do","In progress","Done"];let tasks=[],db=null;const $=id=>document.getElementById(id);
+const today=new Date().toISOString().slice(0,10);
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function render(){if(typeof renderPipe==="function")renderPipe();
+ const fa=$("fa").value,fs=$("fs").value,q=$("q").value.toLowerCase();
+ const people=[...new Set(tasks.map(t=>t.assignee||"Unassigned"))].sort();
+ $("fa").innerHTML='<option value="">Everyone</option>'+people.map(p=>`<option${p===fa?" selected":""}>${esc(p)}</option>`).join("");
+ const open=tasks.filter(t=>t.status!=="Done");
+ $("stats").innerHTML=[["Open",open.length],["Overdue",open.filter(t=>t.due&&t.due<today).length,"bad"],["Due today",open.filter(t=>t.due===today).length],["Unassigned",open.filter(t=>!t.assignee).length],["Done",tasks.length-open.length]].map(([l,n,c])=>`<div class="stat ${c||""}"><b>${n}</b><span>${l}</span></div>`).join("");
+ let list=tasks.filter(t=>(!fa||(t.assignee||"Unassigned")===fa)&&(fs===""||(fs==="open"?t.status!=="Done":t.status===fs))&&(!q||(t.task+" "+t.client).toLowerCase().includes(q)));
+ list.sort((a,b)=>(a.status==="Done")-(b.status==="Done")||(a.due||"9")<(b.due||"9")?-1:1);
+ $("rows").innerHTML=list.length?list.map(t=>`<tr class="${t.status==="Done"?"done":""}" data-id="${t.id}">
+ <td>${esc(t.task)}${stepsHtml(t)}</td><td>${esc(t.client)}</td>
+ <td><input data-k="assignee" value="${esc(t.assignee)}" placeholder="Unassigned"></td>
+ <td><input type="date" data-k="due" value="${esc(t.due)}" class="due ${t.due&&t.due<today&&t.status!=="Done"?"over":""}">${t.due?"":`<div class="nd">No due date</div>`}</td>
+ <td><select data-k="priority" class="pri ${esc(t.priority)}">${["High","Medium","Low"].map(p=>`<option${p===t.priority?" selected":""}>${p}</option>`).join("")}</select></td>
+ <td><select data-k="status">${ST.map(s=>`<option${s===t.status?" selected":""}>${s}</option>`).join("")}</select></td>
+ <td><button class="x" data-del title="Delete">✕</button></td></tr>`).join(""):`<tr><td colspan="7" class="empty">No tasks here yet. Add one above.</td></tr>`;
+}
+["fa","fs","q"].forEach(i=>$(i).addEventListener("input",render));
+$("rows").addEventListener("change",async e=>{if(e.target.closest(".steps"))return;const k=e.target.dataset.k,id=e.target.closest("tr")?.dataset.id;if(!k||!db)return;
+ try{await db.doc("tasks/"+id).update({[k]:e.target.value,updated:new Date().toISOString()});if(k==="priority")e.target.className="pri "+e.target.value}catch(err){$("msg").textContent="Couldn't save that change: "+(err.message||err.code)}});
+$("rows").addEventListener("click",async e=>{if(!e.target.matches("[data-nodue]")||!db)return;const id=e.target.closest("tr").dataset.id;try{await db.doc("tasks/"+id).update({due:"",updated:new Date().toISOString()})}catch(err){$("msg").textContent="Couldn't save: "+(err.message||err.code)}});
+const pend=new Set();
+$("rows").addEventListener("click",async e=>{if(!e.target.matches("[data-del]")||!db)return;const id=e.target.closest("tr").dataset.id;
+ if(!pend.has(id)){pend.add(id);e.target.textContent="Confirm?";setTimeout(()=>{pend.delete(id);e.target.textContent="✕"},3000);return}
+ try{await db.doc("tasks/"+id).delete()}catch(err){$("msg").textContent="Couldn't delete: "+(err.message||err.code)}});
+$("f").addEventListener("submit",async e=>{e.preventDefault();
+ const id="t"+Date.now().toString(36);
+ try{await db.doc("tasks/"+id).set({task:$("t").value,client:$("c").value,assignee:$("a").value,due:$("d").value,priority:$("p").value,status:"To do",notes:"",created:new Date().toISOString()});$("t").value="";$("a").value="";$("d").value=""}
+ catch(err){$("msg").textContent="Couldn't add task: "+(err.message||err.code)}});
+$("csv").addEventListener("click",async()=>{ if(!window.XLSX){$("msg").textContent="Excel export is still loading. Try again in a moment.";return}
+ const rows=tasks.slice().sort((a,b)=>ST.indexOf(a.status)-ST.indexOf(b.status)||((a.due||"9")<(b.due||"9")?-1:1)).map(t=>{const s=t.steps||[];return{"Task":t.task,"Area":t.client||"","Assigned to":t.assignee||"Unassigned","Due date":t.due||"No due date","Priority":t.priority,"Status":t.status,"Steps done":s.length?`${s.filter(x=>x.done).length}/${s.length}`:"","Steps":s.map(x=>(x.done?"✓ ":"☐ ")+x.text+(x.date?` (${x.date})`:"")).join("\n")}});
+ const ws=XLSX.utils.json_to_sheet(rows);ws["!cols"]=[{wch:50},{wch:14},{wch:16},{wch:13},{wch:10},{wch:12},{wch:11},{wch:60}];ws["!autofilter"]={ref:ws["!ref"]};
+ const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Tasks");
+ const sum=[["Status","Count"],...ST.map(s=>[s,tasks.filter(t=>t.status===s).length]),["Overdue",tasks.filter(t=>t.status!=="Done"&&t.due&&t.due<today).length],["Exported",today]];XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(sum),"Summary");
+ XLSX.writeFile(wb,`CB1_Medical_Tasks_${today}.xlsx`)});
+function renderPipe(){$("pipe").innerHTML=ST.map((s,si)=>{const l=tasks.filter(t=>t.status===s).sort((a,b)=>(a.due||"9")<(b.due||"9")?-1:1);
+ return `<div class="col" data-col="${s}"><div class="colh"><span>${s}</span><b>${l.length}</b></div>${l.map(t=>{const st=t.steps||[],d=st.filter(x=>x.done).length;
+ return `<div class="card" draggable="true" data-cid="${t.id}"><div class="ct">${esc(t.task)}</div><div class="cm"><span class="pri ${esc(t.priority)}">${esc(t.priority)}</span>${t.due?`<span class="${t.due<today&&s!=="Done"?"over":""}">${t.due.slice(8)}/${t.due.slice(5,7)}</span>`:`<span>No due date</span>`}<span>${esc(t.assignee||"Unassigned")}</span></div>${st.length?`<div class="cm"><span class="pbar"><i style="width:${d/st.length*100}%"></i></span>${d}/${st.length}</div>`:""}<div class="mv">${si>0?`<button class="x" data-mv="${si-1}" title="Move back">←</button>`:"<span></span>"}${si<ST.length-1?`<button class="x" data-mv="${si+1}" title="Move forward">→</button>`:""}</div></div>`}).join("")||'<div class="msg">Nothing here</div>'}</div>`}).join("")}
+async function moveTo(id,s){if(!db)return;try{await db.doc("tasks/"+id).update({status:s,updated:new Date().toISOString()})}catch(err){$("msg").textContent="Couldn't move task: "+(err.message||err.code)}}
+$("pipe").addEventListener("click",e=>{const b=e.target.closest("[data-mv]");if(b)moveTo(b.closest(".card").dataset.cid,ST[+b.dataset.mv])});
+$("pipe").addEventListener("dragstart",e=>{const c=e.target.closest(".card");if(c)e.dataTransfer.setData("text/plain",c.dataset.cid)});
+$("pipe").addEventListener("dragover",e=>{const c=e.target.closest(".col");if(c){e.preventDefault();c.classList.add("over-col")}});
+$("pipe").addEventListener("dragleave",e=>{e.target.closest(".col")?.classList.remove("over-col")});
+$("pipe").addEventListener("drop",e=>{const c=e.target.closest(".col");if(!c)return;e.preventDefault();c.classList.remove("over-col");const id=e.dataTransfer.getData("text/plain");if(id)moveTo(id,c.dataset.col)});
+const openS=new Set();
+function stepsHtml(t){const s=t.steps||[],d=s.filter(x=>x.done).length,pct=s.length?Math.round(d/s.length*100):0;
+ return `<details class="steps" data-sid="${t.id}"${openS.has(t.id)?" open":""}><summary>${s.length?`<span class="pbar"><i style="width:${pct}%"></i></span> ${d}/${s.length} steps`:"Add steps"}</summary><ol>${s.map((x,i)=>`<li class="${x.done?"sd":""}"><input type="checkbox" data-step="${i}"${x.done?" checked":""} aria-label="Done"><span>${esc(x.text)}</span><input type="date" data-sdate="${i}" value="${esc(x.date)}" aria-label="Date"><button class="x" data-sdel="${i}" title="Remove step">✕</button></li>`).join("")}</ol><div class="addstep"><input placeholder="New step" data-snew><button type="button" class="ghost" data-sadd>Add</button></div></details>`}
+document.addEventListener("toggle",e=>{const id=e.target.dataset?.sid;if(id)e.target.open?openS.add(id):openS.delete(id)},true);
+async function saveSteps(id,steps){try{await db.doc("tasks/"+id).update({steps,updated:new Date().toISOString()})}catch(err){$("msg").textContent="Couldn't save step: "+(err.message||err.code)}}
+$("rows").addEventListener("change",e=>{const el=e.target,tr=el.closest("tr");if(!tr||!db)return;const t=tasks.find(x=>x.id===tr.dataset.id);const s=[...(t.steps||[])].map(x=>({...x}));
+ if(el.dataset.step!=null){const x=s[+el.dataset.step];x.done=el.checked;if(el.checked&&!x.date)x.date=today;saveSteps(t.id,s)}
+ else if(el.dataset.sdate!=null){s[+el.dataset.sdate].date=el.value;saveSteps(t.id,s)}});
+$("rows").addEventListener("click",e=>{const el=e.target,tr=el.closest("tr");if(!tr||!db)return;const t=tasks.find(x=>x.id===tr.dataset.id);const s=[...(t.steps||[])];
+ if(el.matches("[data-sadd]")){const inp=el.previousElementSibling,v=inp.value.trim();if(!v)return;s.push({text:v,done:false,date:""});saveSteps(t.id,s)}
+ if(el.dataset.sdel!=null){s.splice(+el.dataset.sdel,1);saveSteps(t.id,s)}});
+$("rows").addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.matches("[data-snew]")){e.preventDefault();e.target.nextElementSibling.click()}});
+render();
+// ---- Supabase backend ----
+const sb=window.supabase.createClient(CONFIG.SUPABASE_URL,CONFIG.SUPABASE_ANON_KEY);
+const chk=async p=>{const {error}=await p;if(error)throw error};
+db={doc(path){const id=path.split("/")[1];return{
+ set:d=>chk(sb.from("tasks").upsert({id,data:d})),
+ update:d=>{const cur=tasks.find(t=>t.id===id)||{};const {id:_,...rest}=cur;const data={...rest,...d};const i=tasks.findIndex(t=>t.id===id);if(i>=0)tasks[i]={id,...data};return chk(sb.from("tasks").update({data}).eq("id",id))},
+ delete:()=>chk(sb.from("tasks").delete().eq("id",id))}}};
+async function load(){const {data,error}=await sb.from("tasks").select("id,data");
+ if(error){$("msg").textContent="Couldn't load tasks: "+error.message;return}
+ tasks=data.map(r=>({id:r.id,...r.data}));$("msg").textContent=tasks.length+" tasks";render()}
+let lt;sb.channel("tasks").on("postgres_changes",{event:"*",schema:"public",table:"tasks"},()=>{clearTimeout(lt);lt=setTimeout(load,150)}).subscribe();
+load();
+</script>
+
+</body>
+</html>
