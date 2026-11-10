@@ -44,8 +44,7 @@ label:has(.dnw){position:relative}.dnw{position:absolute;top:100%;left:0;margin-
 .nodue{background:none!important;border:none;color:var(--mute)!important;font-family:var(--body);font-weight:500;font-size:11px;padding:2px 0;text-decoration:underline;cursor:pointer}.nd{font-size:11px;color:var(--mute);margin-top:2px}
 textarea.desc{display:block;width:100%;margin-top:4px;font-size:12px;padding:4px 6px;border:1px dashed transparent;background:transparent;color:var(--mute);resize:vertical;min-height:26px;field-sizing:content}textarea.desc:placeholder-shown{height:26px;resize:none;overflow:hidden}textarea.desc:hover,textarea.desc:focus{border-color:var(--line);background:var(--bg);color:var(--fg)}
 .cd{font-size:12px;color:var(--mute);white-space:pre-wrap;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-th:first-child{width:38%}th:nth-child(2){width:11%}th:nth-child(3){width:13%}
-.tn{display:flex;align-items:center;gap:4px}input.ttl{border:1px dashed transparent;background:transparent;font-size:14px;color:var(--fg);padding:3px 6px;margin-left:-6px;width:100%}input.ttl:hover,input.ttl:focus{border-color:var(--line);background:var(--bg)}input.area{font-size:13px;margin-left:0}.pen{color:var(--mute);font-size:12px;opacity:0}.tn:hover .pen{opacity:1}
+.modal{position:fixed;inset:0;background:rgba(20,25,24,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}.mbox{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:22px;max-width:420px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,.2)}.mbox h3{margin:0 0 8px;font-family:var(--display);font-size:18px}.mbox p{margin:0 0 18px;color:var(--mute);font-size:14px;line-height:1.5}.mbtn{display:flex;justify-content:flex-end;gap:8px}button.danger{background:var(--bad);border-color:var(--bad);color:#fff!important}
 .h2{font-family:var(--display);font-size:18px;margin:0 0 10px}
 .pipe{display:grid;grid-template-columns:repeat(3,minmax(220px,1fr));gap:12px;overflow-x:auto;padding-bottom:4px}
 .col{background:color-mix(in srgb,var(--accent) 7%,var(--bg));border:1px solid var(--line);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:8px;min-height:120px}.col.over-col{outline:2px dashed var(--accent)}
@@ -100,7 +99,7 @@ function render(){if(typeof renderPipe==="function")renderPipe();
  let list=tasks.filter(t=>(!fa||(t.assignee||"Unassigned")===fa)&&(fs===""||(fs==="open"?t.status!=="Done":t.status===fs))&&(!q||(t.task+" "+t.client+" "+(t.desc||"")).toLowerCase().includes(q)));
  list.sort((a,b)=>(a.status==="Done")-(b.status==="Done")||(a.due||"9")<(b.due||"9")?-1:1);
  $("rows").innerHTML=list.length?list.map(t=>`<tr class="${t.status==="Done"?"done":""}" data-id="${t.id}">
- <td><div class="tn"><input class="ttl" data-k="task" value="${esc(t.task)}" aria-label="Task name"><span class="pen" aria-hidden="true">✎</span></div><textarea class="desc" data-k="desc" rows="1" placeholder="+ Add description">${esc(t.desc)}</textarea>${stepsHtml(t)}</td><td><input class="ttl area" data-k="client" value="${esc(t.client)}" placeholder="Area" aria-label="Area"></td>
+ <td>${esc(t.task)}<textarea class="desc" data-k="desc" rows="1" placeholder="+ Add description">${esc(t.desc)}</textarea>${stepsHtml(t)}</td><td>${esc(t.client)}</td>
  <td><input data-k="assignee" value="${esc(t.assignee)}" placeholder="Unassigned"></td>
  <td><input type="date" data-k="due" value="${esc(t.due)}" class="due ${t.due&&t.due<today&&t.status!=="Done"?"over":""}">${t.due?"":`<div class="nd">No due date</div>`}</td>
  <td><select data-k="priority" class="pri ${esc(t.priority)}">${["High","Medium","Low"].map(p=>`<option${p===t.priority?" selected":""}>${p}</option>`).join("")}</select></td>
@@ -109,13 +108,14 @@ function render(){if(typeof renderPipe==="function")renderPipe();
 }
 ["fa","fs","q"].forEach(i=>$(i).addEventListener("input",render));
 $("rows").addEventListener("change",async e=>{if(e.target.closest(".steps"))return;const k=e.target.dataset.k,id=e.target.closest("tr")?.dataset.id;if(!k||!db)return;
- if(k==="task"&&!e.target.value.trim()){render();return}
  try{await db.doc("tasks/"+id).update({[k]:e.target.value,updated:new Date().toISOString()});if(k==="priority")e.target.className="pri "+e.target.value}catch(err){$("msg").textContent="Couldn't save that change: "+(err.message||err.code)}});
 $("rows").addEventListener("click",async e=>{if(!e.target.matches("[data-nodue]")||!db)return;const id=e.target.closest("tr").dataset.id;try{await db.doc("tasks/"+id).update({due:"",updated:new Date().toISOString()})}catch(err){$("msg").textContent="Couldn't save: "+(err.message||err.code)}});
-$("rows").addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.matches("input.ttl"))e.target.blur()});
+function askDelete(id){const t=tasks.find(x=>x.id===id);return new Promise(res=>{const m=document.createElement("div");m.className="modal";m.innerHTML=`<div class="mbox" role="dialog" aria-modal="true" aria-labelledby="mt"><h3 id="mt">Delete this task?</h3><p>"${esc(t?t.task:"")}" will be removed for everyone. This can't be undone.</p><div class="mbtn"><button type="button" class="ghost" data-c>Cancel</button><button type="button" class="danger" data-ok>Delete</button></div></div>`;
+ const done=v=>{m.remove();document.removeEventListener("keydown",k);res(v)};const k=e=>{if(e.key==="Escape")done(false)};document.addEventListener("keydown",k);
+ m.addEventListener("click",e=>{if(e.target===m||e.target.matches("[data-c]"))done(false);if(e.target.matches("[data-ok]"))done(true)});document.body.appendChild(m);m.querySelector("[data-c]").focus()})}
 const pend=new Set();
 $("rows").addEventListener("click",async e=>{if(!e.target.matches("[data-del]")||!db)return;const id=e.target.closest("tr").dataset.id;
- if(!pend.has(id)){pend.add(id);e.target.textContent="Confirm?";setTimeout(()=>{pend.delete(id);e.target.textContent="✕"},3000);return}
+ if(!await askDelete(id))return;
  try{await db.doc("tasks/"+id).delete()}catch(err){$("msg").textContent="Couldn't delete: "+(err.message||err.code)}});
 $("f").addEventListener("submit",async e=>{e.preventDefault();
  const id="t"+Date.now().toString(36);
