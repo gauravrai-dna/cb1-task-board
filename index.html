@@ -50,6 +50,8 @@ textarea.desc{display:block;width:100%;margin-top:4px;font-size:12px;padding:4px
 th:first-child{width:38%}th:nth-child(2){width:11%}th:nth-child(3){width:13%}
 .tn{display:flex;align-items:center;gap:4px}input.ttl{border:1px dashed transparent;background:transparent;font-size:14px;color:var(--fg);padding:3px 6px;margin-left:-6px;width:100%}input.ttl:hover,input.ttl:focus{border-color:var(--line);background:var(--bg)}input.area{font-size:13px;margin-left:0}.pen{background:none!important;border:none;color:var(--mute)!important;font-size:14px;padding:2px 6px;cursor:pointer;flex:none}.pen:hover{color:var(--accent)!important}th:nth-child(6){width:12%}
 .more{font-size:12px!important}textarea.tfull{resize:none;font-family:inherit;line-height:1.4;min-height:0;flex:1;width:100%;overflow:hidden;white-space:pre-wrap}.tn:has(.tfull){align-items:flex-start}.full{margin:6px 0 4px;padding:10px 12px;background:var(--bg);border:1px solid var(--line);border-radius:6px;font-size:13px;display:grid;gap:6px}.full b{font-weight:600;white-space:normal;word-break:break-word}.full p{margin:0;white-space:pre-wrap;color:var(--fg)}.full span{color:var(--mute);font-size:12px}
+.hbtn{font-size:12px!important;padding:3px 8px!important}.colh{flex-wrap:wrap;gap:6px;align-items:center}.colh .hbtn{margin-left:auto}
+.hist-t{background:var(--panel)!important;border:1px solid var(--line);color:var(--fg)!important;width:100%;text-align:left;font-size:16px;padding:12px 14px;display:flex;gap:8px;align-items:center}.hist-t b{background:var(--line);border-radius:99px;padding:0 8px;font-size:12px}#hist:not([hidden]){display:grid;gap:10px;margin-top:10px}.hi{display:flex;gap:12px;justify-content:space-between;align-items:flex-start;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 14px}.hx{display:grid;gap:4px;min-width:0}.hx b{font-weight:600;font-size:14px;word-break:break-word}.hx span{font-size:12px;color:var(--mute)}.hx p{margin:0;font-size:13px;white-space:pre-wrap;color:var(--mute)}.hb{display:flex;gap:6px;flex:none}.hb button{font-size:12px;padding:5px 10px}
 .h2{font-family:var(--display);font-size:18px;margin:0 0 10px}
 .pipe{display:grid;grid-template-columns:repeat(3,minmax(220px,1fr));gap:12px;overflow-x:auto;padding-bottom:4px}
 .col{background:color-mix(in srgb,var(--accent) 7%,var(--bg));border:1px solid var(--line);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:8px;min-height:120px}.col.over-col{outline:2px dashed var(--accent)}
@@ -87,12 +89,13 @@ th:first-child{width:38%}th:nth-child(2){width:11%}th:nth-child(3){width:13%}
 <p class="msg" id="msg">Loading tasks…</p>
 <div class="tbl"><table><thead><tr><th>Task</th><th>Area</th><th>Assigned to</th><th>Due</th><th>Priority</th><th>Status</th><th></th></tr></thead><tbody id="rows"></tbody></table></div>
 <section><h2 class="h2">Pipeline</h2><div class="pipe" id="pipe"></div></section>
+<section><button type="button" class="hist-t" id="ht" aria-expanded="false">▸ History</button><div id="hist" hidden><input id="hq" placeholder="Search history"><div id="hl" style="display:grid;gap:8px"></div></div></section>
 </div>
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
-const ST=["To do","In progress","Done"];let tasks=[],db=null;const $=id=>document.getElementById(id);
+const ST=["To do","In progress","Done"];let tasks=[],allTasks=[],db=null;const $=id=>document.getElementById(id);
 const today=new Date().toISOString().slice(0,10);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 function render(){if(typeof renderPipe==="function")renderPipe();
@@ -116,12 +119,24 @@ $("rows").addEventListener("change",async e=>{if(e.target.closest(".steps"))retu
  if(k==="task"&&!e.target.value.trim()){render();return}
  try{await db.doc("tasks/"+id).update({[k]:e.target.value,updated:new Date().toISOString()});if(k==="priority")e.target.className="pri "+e.target.value}catch(err){$("msg").textContent="Couldn't save that change: "+(err.message||err.code)}});
 $("rows").addEventListener("click",async e=>{if(!e.target.matches("[data-nodue]")||!db)return;const id=e.target.closest("tr").dataset.id;try{await db.doc("tasks/"+id).update({due:"",updated:new Date().toISOString()})}catch(err){$("msg").textContent="Couldn't save: "+(err.message||err.code)}});
-function askDelete(id){const t=tasks.find(x=>x.id===id);return new Promise(res=>{const m=document.createElement("div");m.className="modal";m.innerHTML=`<div class="mbox" role="dialog" aria-modal="true" aria-labelledby="mt"><h3 id="mt">Delete this task?</h3><p>"${esc(t?t.task:"")}" will be removed for everyone. This can't be undone.</p><div class="mbtn"><button type="button" class="ghost" data-c>Cancel</button><button type="button" class="danger" data-ok>Delete</button></div></div>`;
+function askDelete(id){const t=allTasks.find(x=>x.id===id);return new Promise(res=>{const m=document.createElement("div");m.className="modal";m.innerHTML=`<div class="mbox" role="dialog" aria-modal="true" aria-labelledby="mt"><h3 id="mt">Delete this task?</h3><p>"${esc(t?t.task:"")}" will be removed for everyone. This can't be undone.</p><div class="mbtn"><button type="button" class="ghost" data-c>Cancel</button><button type="button" class="danger" data-ok>Delete</button></div></div>`;
  const done=v=>{m.remove();document.removeEventListener("keydown",k);res(v)};const k=e=>{if(e.key==="Escape")done(false)};document.addEventListener("keydown",k);
  m.addEventListener("click",e=>{if(e.target===m||e.target.matches("[data-c]"))done(false);if(e.target.matches("[data-ok]"))done(true)});document.body.appendChild(m);m.querySelector("[data-c]").focus()})}
 $("rows").addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.matches(".ttl")){e.preventDefault();e.target.blur()}});
 $("rows").addEventListener("click",e=>{const b=e.target.closest("[data-edit]");if(b){const i=b.previousElementSibling;i.focus();i.select()}});
 const openD=new Set();$("rows").addEventListener("click",e=>{const b=e.target.closest("[data-more]");if(!b)return;const id=b.closest("tr").dataset.id;openD.has(id)?openD.delete(id):openD.add(id);render();document.querySelectorAll(".tfull").forEach(x=>{x.style.height="auto";x.style.height=x.scrollHeight+2+"px"})});
+let histOpen=false;const fmtD=d=>d?d.slice(8,10)+"/"+d.slice(5,7)+"/"+d.slice(0,4):"";
+function renderHist(){const all=allTasks.filter(t=>t.archived).sort((a,b)=>(b.archived||"").localeCompare(a.archived||""));const q=$("hq").value.toLowerCase();
+ $("ht").innerHTML=`<span>${histOpen?"▾":"▸"}</span> History <b>${all.length}</b>`;$("ht").setAttribute("aria-expanded",histOpen);$("hist").hidden=!histOpen;
+ const l=all.filter(t=>!q||(t.task+" "+(t.client||"")+" "+(t.desc||"")+" "+(t.assignee||"")).toLowerCase().includes(q));
+ $("hl").innerHTML=l.length?l.map(t=>`<div class="hi" data-hid="${t.id}"><div class="hx"><b>${esc(t.task)}</b><span>${esc(t.client||"No area")} · ${esc(t.assignee||"Unassigned")} · Moved to history ${fmtD(t.archived)}</span>${t.desc?`<p>${esc(t.desc)}</p>`:""}</div><div class="hb"><button type="button" class="ghost" data-restore>Restore</button><button type="button" class="danger" data-hdel>Delete</button></div></div>`).join(""):`<p class="msg">${all.length?"No matches.":"No tasks in history yet. Finished tasks can be moved here from the Done column."}</p>`}
+$("ht").addEventListener("click",()=>{histOpen=!histOpen;renderHist()});$("hq").addEventListener("input",renderHist);
+async function upd(id,d){try{await db.doc("tasks/"+id).update({...d,updated:new Date().toISOString()})}catch(err){$("msg").textContent="Couldn't save: "+(err.message||err.code)}}
+$("hl").addEventListener("click",async e=>{const it=e.target.closest("[data-hid]");if(!it)return;const id=it.dataset.hid;
+ if(e.target.matches("[data-restore]")){await upd(id,{archived:"",status:"Done"})}
+ if(e.target.matches("[data-hdel]")){if(!await askDelete(id))return;try{await db.doc("tasks/"+id).delete()}catch(err){$("msg").textContent="Couldn't delete: "+(err.message||err.code)}}});
+$("pipe").addEventListener("click",async e=>{if(e.target.matches("[data-arch]")){await upd(e.target.closest(".card").dataset.cid,{archived:today})}
+ if(e.target.matches("[data-archall]")){e.target.disabled=true;for(const t of tasks.filter(t=>t.status==="Done"))await upd(t.id,{archived:today})}});
 const pend=new Set();
 $("rows").addEventListener("click",async e=>{if(!e.target.matches("[data-del]")||!db)return;const id=e.target.closest("tr").dataset.id;
  if(!await askDelete(id))return;
@@ -133,12 +148,12 @@ $("f").addEventListener("submit",async e=>{e.preventDefault();
 $("csv").addEventListener("click",async()=>{ if(!window.XLSX){$("msg").textContent="Excel export is still loading. Try again in a moment.";return}
  const rows=tasks.slice().sort((a,b)=>ST.indexOf(a.status)-ST.indexOf(b.status)||((a.due||"9")<(b.due||"9")?-1:1)).map(t=>{const s=t.steps||[];return{"Task":t.task,"Description":t.desc||"","Area":t.client||"","Assigned to":t.assignee||"Unassigned","Due date":t.due||"No due date","Priority":t.priority,"Status":t.status,"Steps done":s.length?`${s.filter(x=>x.done).length}/${s.length}`:"","Steps":s.map(x=>(x.done?"✓ ":"☐ ")+x.text+(x.date?` (${x.date})`:"")).join("\n")}});
  const ws=XLSX.utils.json_to_sheet(rows);ws["!cols"]=[{wch:50},{wch:50},{wch:14},{wch:16},{wch:13},{wch:10},{wch:12},{wch:11},{wch:60}];ws["!autofilter"]={ref:ws["!ref"]};
- const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Tasks");
+ const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Tasks");XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(allTasks.filter(t=>t.archived).map(t=>({"Task":t.task,"Description":t.desc||"","Area":t.client||"","Assigned to":t.assignee||"","Moved to history":t.archived}))),"History");
  const sum=[["Status","Count"],...ST.map(s=>[s,tasks.filter(t=>t.status===s).length]),["Overdue",tasks.filter(t=>t.status!=="Done"&&t.due&&t.due<today).length],["Exported",today]];XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(sum),"Summary");
  XLSX.writeFile(wb,`CB1_Medical_Tasks_${today}.xlsx`)});
 function renderPipe(){$("pipe").innerHTML=ST.map((s,si)=>{const l=tasks.filter(t=>t.status===s).sort((a,b)=>(a.due||"9")<(b.due||"9")?-1:1);
- return `<div class="col" data-col="${s}"><div class="colh"><span>${s}</span><b>${l.length}</b></div>${l.map(t=>{const st=t.steps||[],d=st.filter(x=>x.done).length;
- return `<div class="card" draggable="true" data-cid="${t.id}"><div class="ct">${esc(t.task)}</div>${t.desc?`<div class="cd">${esc(t.desc)}</div>`:""}<div class="cm"><span class="pri ${esc(t.priority)}">${esc(t.priority)}</span>${t.due?`<span class="${t.due<today&&s!=="Done"?"over":""}">${t.due.slice(8)}/${t.due.slice(5,7)}</span>`:`<span>No due date</span>`}<span>${esc(t.assignee||"Unassigned")}</span></div>${st.length?`<div class="cm"><span class="pbar"><i style="width:${d/st.length*100}%"></i></span>${d}/${st.length}</div>`:""}<div class="mv">${si>0?`<button class="x" data-mv="${si-1}" title="Move back">←</button>`:"<span></span>"}${si<ST.length-1?`<button class="x" data-mv="${si+1}" title="Move forward">→</button>`:""}</div></div>`}).join("")||'<div class="msg">Nothing here</div>'}</div>`}).join("")}
+ return `<div class="col" data-col="${s}"><div class="colh"><span>${s}</span><b>${l.length}</b>${s==="Done"&&l.length?`<button type="button" class="ghost hbtn" data-archall>Move all to History</button>`:""}</div>${l.map(t=>{const st=t.steps||[],d=st.filter(x=>x.done).length;
+ return `<div class="card" draggable="true" data-cid="${t.id}"><div class="ct">${esc(t.task)}</div>${t.desc?`<div class="cd">${esc(t.desc)}</div>`:""}<div class="cm"><span class="pri ${esc(t.priority)}">${esc(t.priority)}</span>${t.due?`<span class="${t.due<today&&s!=="Done"?"over":""}">${t.due.slice(8)}/${t.due.slice(5,7)}</span>`:`<span>No due date</span>`}<span>${esc(t.assignee||"Unassigned")}</span></div>${st.length?`<div class="cm"><span class="pbar"><i style="width:${d/st.length*100}%"></i></span>${d}/${st.length}</div>`:""}<div class="mv">${si>0?`<button class="x" data-mv="${si-1}" title="Move back">←</button>`:"<span></span>"}${s==="Done"?`<button type="button" class="ghost hbtn" data-arch>Move to History</button>`:""}${si<ST.length-1?`<button class="x" data-mv="${si+1}" title="Move forward">→</button>`:""}</div></div>`}).join("")||'<div class="msg">Nothing here</div>'}</div>`}).join("")}
 async function moveTo(id,s){if(!db)return;try{await db.doc("tasks/"+id).update({status:s,updated:new Date().toISOString()})}catch(err){$("msg").textContent="Couldn't move task: "+(err.message||err.code)}}
 $("pipe").addEventListener("click",e=>{const b=e.target.closest("[data-mv]");if(b)moveTo(b.closest(".card").dataset.cid,ST[+b.dataset.mv])});
 $("pipe").addEventListener("dragstart",e=>{const c=e.target.closest(".card");if(c)e.dataTransfer.setData("text/plain",c.dataset.cid)});
@@ -163,11 +178,11 @@ const sb=window.supabase.createClient(CONFIG.SUPABASE_URL,CONFIG.SUPABASE_ANON_K
 const chk=async p=>{const {error}=await p;if(error)throw error};
 db={doc(path){const id=path.split("/")[1];return{
  set:d=>chk(sb.from("tasks").upsert({id,data:d})),
- update:d=>{const cur=tasks.find(t=>t.id===id)||{};const {id:_,...rest}=cur;const data={...rest,...d};const i=tasks.findIndex(t=>t.id===id);if(i>=0)tasks[i]={id,...data};return chk(sb.from("tasks").update({data}).eq("id",id))},
+ update:d=>{const cur=allTasks.find(t=>t.id===id)||{};const {id:_,...rest}=cur;const data={...rest,...d};const i=allTasks.findIndex(t=>t.id===id);if(i>=0)allTasks[i]={id,...data};tasks=allTasks.filter(t=>!t.archived);return chk(sb.from("tasks").update({data}).eq("id",id))},
  delete:()=>chk(sb.from("tasks").delete().eq("id",id))}}};
 async function load(){const {data,error}=await sb.from("tasks").select("id,data");
  if(error){$("msg").textContent="Couldn't load tasks: "+error.message;return}
- tasks=data.map(r=>({id:r.id,...r.data}));$("msg").textContent=tasks.length+" tasks";render()}
+ allTasks=data.map(r=>({id:r.id,...r.data}));tasks=allTasks.filter(t=>!t.archived);$("msg").textContent=tasks.length+" tasks";render();renderHist()}
 let lt;sb.channel("tasks").on("postgres_changes",{event:"*",schema:"public",table:"tasks"},()=>{clearTimeout(lt);lt=setTimeout(load,150)}).subscribe();
 load();
 </script>
