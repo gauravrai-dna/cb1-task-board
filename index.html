@@ -42,6 +42,8 @@ tr.done td{opacity:.55}.src{font-size:12px;color:var(--mute)}
 .x{background:none;border:none;color:var(--mute);padding:2px 6px}
 label:has(.dnw){position:relative}.dnw{position:absolute;top:100%;left:0;margin-top:4px;display:flex;gap:4px;align-items:center;font-size:12px;white-space:nowrap}form{padding-bottom:30px;row-gap:30px}
 .nodue{background:none!important;border:none;color:var(--mute)!important;font-family:var(--body);font-weight:500;font-size:11px;padding:2px 0;text-decoration:underline;cursor:pointer}.nd{font-size:11px;color:var(--mute);margin-top:2px}
+textarea.desc{display:block;width:100%;margin-top:4px;font-size:12px;padding:4px 6px;border:1px dashed transparent;background:transparent;color:var(--mute);resize:vertical;min-height:26px;field-sizing:content}textarea.desc:placeholder-shown{height:26px;resize:none;overflow:hidden}textarea.desc:hover,textarea.desc:focus{border-color:var(--line);background:var(--bg);color:var(--fg)}
+.cd{font-size:12px;color:var(--mute);white-space:pre-wrap;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .h2{font-family:var(--display);font-size:18px;margin:0 0 10px}
 .pipe{display:grid;grid-template-columns:repeat(3,minmax(220px,1fr));gap:12px;overflow-x:auto;padding-bottom:4px}
 .col{background:color-mix(in srgb,var(--accent) 7%,var(--bg));border:1px solid var(--line);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:8px;min-height:120px}.col.over-col{outline:2px dashed var(--accent)}
@@ -65,6 +67,7 @@ label:has(.dnw){position:relative}.dnw{position:absolute;top:100%;left:0;margin-
 <label>Area<input id="c" placeholder="Website, SEO, Ads…"></label>
 <label>Assigned to<input id="a" placeholder="Name"></label>
 <label>Due<input id="d" type="date" oninput="document.getElementById('dnw').hidden=!!this.value"><span id="dnw" class="dnw"><input type="checkbox" id="dn" style="width:auto" onchange="if(this.checked)document.getElementById('d').value=''">No due date</span></label>
+<label class="wide">Description<textarea id="ds" rows="2" placeholder="Details, links, what done looks like…"></textarea></label>
 <label>Priority<select id="p"><option>High</option><option selected>Medium</option><option>Low</option></select></label>
 <button>Add task</button>
 </form>
@@ -92,10 +95,10 @@ function render(){if(typeof renderPipe==="function")renderPipe();
  $("fa").innerHTML='<option value="">Everyone</option>'+people.map(p=>`<option${p===fa?" selected":""}>${esc(p)}</option>`).join("");
  const open=tasks.filter(t=>t.status!=="Done");
  $("stats").innerHTML=[["Open",open.length],["Overdue",open.filter(t=>t.due&&t.due<today).length,"bad"],["Due today",open.filter(t=>t.due===today).length],["Unassigned",open.filter(t=>!t.assignee).length],["Done",tasks.length-open.length]].map(([l,n,c])=>`<div class="stat ${c||""}"><b>${n}</b><span>${l}</span></div>`).join("");
- let list=tasks.filter(t=>(!fa||(t.assignee||"Unassigned")===fa)&&(fs===""||(fs==="open"?t.status!=="Done":t.status===fs))&&(!q||(t.task+" "+t.client).toLowerCase().includes(q)));
+ let list=tasks.filter(t=>(!fa||(t.assignee||"Unassigned")===fa)&&(fs===""||(fs==="open"?t.status!=="Done":t.status===fs))&&(!q||(t.task+" "+t.client+" "+(t.desc||"")).toLowerCase().includes(q)));
  list.sort((a,b)=>(a.status==="Done")-(b.status==="Done")||(a.due||"9")<(b.due||"9")?-1:1);
  $("rows").innerHTML=list.length?list.map(t=>`<tr class="${t.status==="Done"?"done":""}" data-id="${t.id}">
- <td>${esc(t.task)}${stepsHtml(t)}</td><td>${esc(t.client)}</td>
+ <td>${esc(t.task)}<textarea class="desc" data-k="desc" rows="1" placeholder="+ Add description">${esc(t.desc)}</textarea>${stepsHtml(t)}</td><td>${esc(t.client)}</td>
  <td><input data-k="assignee" value="${esc(t.assignee)}" placeholder="Unassigned"></td>
  <td><input type="date" data-k="due" value="${esc(t.due)}" class="due ${t.due&&t.due<today&&t.status!=="Done"?"over":""}">${t.due?"":`<div class="nd">No due date</div>`}</td>
  <td><select data-k="priority" class="pri ${esc(t.priority)}">${["High","Medium","Low"].map(p=>`<option${p===t.priority?" selected":""}>${p}</option>`).join("")}</select></td>
@@ -112,17 +115,17 @@ $("rows").addEventListener("click",async e=>{if(!e.target.matches("[data-del]")|
  try{await db.doc("tasks/"+id).delete()}catch(err){$("msg").textContent="Couldn't delete: "+(err.message||err.code)}});
 $("f").addEventListener("submit",async e=>{e.preventDefault();
  const id="t"+Date.now().toString(36);
- try{await db.doc("tasks/"+id).set({task:$("t").value,client:$("c").value,assignee:$("a").value,due:$("d").value,priority:$("p").value,status:"To do",notes:"",created:new Date().toISOString()});$("t").value="";$("a").value="";$("d").value=""}
+ try{await db.doc("tasks/"+id).set({task:$("t").value,client:$("c").value,assignee:$("a").value,due:$("d").value,priority:$("p").value,desc:$("ds").value.trim(),status:"To do",notes:"",created:new Date().toISOString()});$("t").value="";$("a").value="";$("d").value="";$("ds").value=""}
  catch(err){$("msg").textContent="Couldn't add task: "+(err.message||err.code)}});
 $("csv").addEventListener("click",async()=>{ if(!window.XLSX){$("msg").textContent="Excel export is still loading. Try again in a moment.";return}
- const rows=tasks.slice().sort((a,b)=>ST.indexOf(a.status)-ST.indexOf(b.status)||((a.due||"9")<(b.due||"9")?-1:1)).map(t=>{const s=t.steps||[];return{"Task":t.task,"Area":t.client||"","Assigned to":t.assignee||"Unassigned","Due date":t.due||"No due date","Priority":t.priority,"Status":t.status,"Steps done":s.length?`${s.filter(x=>x.done).length}/${s.length}`:"","Steps":s.map(x=>(x.done?"✓ ":"☐ ")+x.text+(x.date?` (${x.date})`:"")).join("\n")}});
- const ws=XLSX.utils.json_to_sheet(rows);ws["!cols"]=[{wch:50},{wch:14},{wch:16},{wch:13},{wch:10},{wch:12},{wch:11},{wch:60}];ws["!autofilter"]={ref:ws["!ref"]};
+ const rows=tasks.slice().sort((a,b)=>ST.indexOf(a.status)-ST.indexOf(b.status)||((a.due||"9")<(b.due||"9")?-1:1)).map(t=>{const s=t.steps||[];return{"Task":t.task,"Description":t.desc||"","Area":t.client||"","Assigned to":t.assignee||"Unassigned","Due date":t.due||"No due date","Priority":t.priority,"Status":t.status,"Steps done":s.length?`${s.filter(x=>x.done).length}/${s.length}`:"","Steps":s.map(x=>(x.done?"✓ ":"☐ ")+x.text+(x.date?` (${x.date})`:"")).join("\n")}});
+ const ws=XLSX.utils.json_to_sheet(rows);ws["!cols"]=[{wch:50},{wch:50},{wch:14},{wch:16},{wch:13},{wch:10},{wch:12},{wch:11},{wch:60}];ws["!autofilter"]={ref:ws["!ref"]};
  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Tasks");
  const sum=[["Status","Count"],...ST.map(s=>[s,tasks.filter(t=>t.status===s).length]),["Overdue",tasks.filter(t=>t.status!=="Done"&&t.due&&t.due<today).length],["Exported",today]];XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(sum),"Summary");
  XLSX.writeFile(wb,`CB1_Medical_Tasks_${today}.xlsx`)});
 function renderPipe(){$("pipe").innerHTML=ST.map((s,si)=>{const l=tasks.filter(t=>t.status===s).sort((a,b)=>(a.due||"9")<(b.due||"9")?-1:1);
  return `<div class="col" data-col="${s}"><div class="colh"><span>${s}</span><b>${l.length}</b></div>${l.map(t=>{const st=t.steps||[],d=st.filter(x=>x.done).length;
- return `<div class="card" draggable="true" data-cid="${t.id}"><div class="ct">${esc(t.task)}</div><div class="cm"><span class="pri ${esc(t.priority)}">${esc(t.priority)}</span>${t.due?`<span class="${t.due<today&&s!=="Done"?"over":""}">${t.due.slice(8)}/${t.due.slice(5,7)}</span>`:`<span>No due date</span>`}<span>${esc(t.assignee||"Unassigned")}</span></div>${st.length?`<div class="cm"><span class="pbar"><i style="width:${d/st.length*100}%"></i></span>${d}/${st.length}</div>`:""}<div class="mv">${si>0?`<button class="x" data-mv="${si-1}" title="Move back">←</button>`:"<span></span>"}${si<ST.length-1?`<button class="x" data-mv="${si+1}" title="Move forward">→</button>`:""}</div></div>`}).join("")||'<div class="msg">Nothing here</div>'}</div>`}).join("")}
+ return `<div class="card" draggable="true" data-cid="${t.id}"><div class="ct">${esc(t.task)}</div>${t.desc?`<div class="cd">${esc(t.desc)}</div>`:""}<div class="cm"><span class="pri ${esc(t.priority)}">${esc(t.priority)}</span>${t.due?`<span class="${t.due<today&&s!=="Done"?"over":""}">${t.due.slice(8)}/${t.due.slice(5,7)}</span>`:`<span>No due date</span>`}<span>${esc(t.assignee||"Unassigned")}</span></div>${st.length?`<div class="cm"><span class="pbar"><i style="width:${d/st.length*100}%"></i></span>${d}/${st.length}</div>`:""}<div class="mv">${si>0?`<button class="x" data-mv="${si-1}" title="Move back">←</button>`:"<span></span>"}${si<ST.length-1?`<button class="x" data-mv="${si+1}" title="Move forward">→</button>`:""}</div></div>`}).join("")||'<div class="msg">Nothing here</div>'}</div>`}).join("")}
 async function moveTo(id,s){if(!db)return;try{await db.doc("tasks/"+id).update({status:s,updated:new Date().toISOString()})}catch(err){$("msg").textContent="Couldn't move task: "+(err.message||err.code)}}
 $("pipe").addEventListener("click",e=>{const b=e.target.closest("[data-mv]");if(b)moveTo(b.closest(".card").dataset.cid,ST[+b.dataset.mv])});
 $("pipe").addEventListener("dragstart",e=>{const c=e.target.closest(".card");if(c)e.dataTransfer.setData("text/plain",c.dataset.cid)});
